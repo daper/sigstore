@@ -1,0 +1,41 @@
+kind: Pipeline
+apiVersion: tekton.dev/v1beta1
+metadata:
+  name: build-trillian
+spec:
+  workspaces:
+    - name: output
+  tasks:
+    - name: clone-repo
+      taskRef:
+        resolver: hub
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: version
+            value: ">=0.9.0"
+      workspaces:
+        - name: output
+      params:
+        - name: url
+          value: https://github.com/google/trillian
+        - name: revision
+          value: v1.7.0
+        - name: subdirectory
+          value: code
+    - name: print-contents
+      taskSpec:
+        steps:
+          - name: test
+            image: alpine:3.20
+            script: |
+              ls -la /
+              ls -la /workspace
+              cd /workspace/output
+              pwd
+              ls -la
+      runAfter: [clone-repo]
+      workspaces:
+        - name: output

@@ -1,0 +1,10 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: policies
+spec:
+  dependsOn:
+    - name: kyverno
+  path: ./kubernetes/kyverno/policies
+  timeout: 1m

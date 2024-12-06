@@ -1,0 +1,17 @@
+namespace: flux-system
+
+resources:
+  - jetstack.yaml
+  - bitnami.yaml
+  - kyverno.yaml
+  - sigstore.yaml
+  - bjw-s.yaml
+  - emberstack.yaml
+
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/interval
+        value: 1h
+    target:
+      kind: HelmRepository

@@ -1,0 +1,28 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: triggers
+  annotations:
+    kustomize.config.k8s.io/skip-patch: "true"
+spec:
+  path: ./triggers/latest
+  interval: 1m
+  timeout: 1m
+  sourceRef:
+    kind: Bucket
+    name: tekton
+    namespace: tekton
+  targetNamespace: tekton
+  prune: true
+  patches:
+    - patch: |-
+        - op: replace
+          path: /rules/7/resourceNames/0
+          value: tekton
+        - op: replace
+          path: /rules/8/resourceNames/0
+          value: tekton
+      target:
+        kind: ClusterRole
+        name: tekton-triggers-admin

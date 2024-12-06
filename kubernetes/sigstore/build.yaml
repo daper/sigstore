@@ -1,0 +1,11 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: build
+spec:
+  dependsOn:
+    - name: pipeline
+      namespace: tekton
+  path: ./kubernetes/sigstore/build
+  timeout: 1m

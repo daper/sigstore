@@ -1,0 +1,18 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: Bucket
+metadata:
+  name: tekton
+spec:
+  interval: 24h
+  endpoint: storage.googleapis.com
+  bucketName: tekton-releases
+  ignore: |
+    # exclude all
+    /*
+    # include deploy dir
+    !/operator/latest/release.yaml
+    !/pipeline/latest/release.yaml
+    !/dashboard/latest/release.yaml
+    !/triggers/latest/release.yaml
+    !/triggers/latest/interceptors.yaml

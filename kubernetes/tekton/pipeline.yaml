@@ -1,0 +1,46 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: pipeline
+  annotations:
+    kustomize.config.k8s.io/skip-patch: "true"
+spec:
+  path: ./pipeline/latest
+  interval: 1m
+  timeout: 1m
+  sourceRef:
+    kind: Bucket
+    name: tekton
+    namespace: tekton
+  targetNamespace: tekton
+  prune: true
+  patches:
+    - patch: |-
+        $patch: delete
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: not-used
+      target:
+        kind: Namespace
+    - patch: |-
+        $patch: delete
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: not-used
+      target:
+        kind: ConfigMap
+        name: (config-logging|config-observability)
+        labelSelector: app.kubernetes.io/component=resolvers
+    - patch: |-
+        - op: replace
+          path: /rules/5/resourceNames/0
+          value: tekton
+        - op: replace
+          path: /rules/6/resourceNames/0
+          value: tekton
+      target:
+        kind: ClusterRole
+        name: tekton-pipelines-webhook-cluster-access

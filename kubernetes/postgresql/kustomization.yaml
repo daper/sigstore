@@ -1,0 +1,22 @@
+namespace: postgresql
+
+resources:
+  - namespace.yaml
+  - postgresql.yaml
+
+patches:
+  - patch: |-
+      apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
+        name: not-used
+      spec:
+        sourceRef:
+          kind: OCIRepository
+          name: code
+          namespace: flux-system
+        targetNamespace: postgresql
+        interval: 1m
+        prune: true
+    target:
+      kind: Kustomization

@@ -1,0 +1,23 @@
+namespace: kyverno
+
+resources:
+  - namespace.yaml
+  - kyverno.yaml
+  - policies.yaml
+
+patches:
+  - patch: |-
+      apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
+        name: not-used
+      spec:
+        sourceRef:
+          kind: OCIRepository
+          name: code
+          namespace: flux-system
+        targetNamespace: kyverno
+        interval: 1m
+        prune: true
+    target:
+      kind: Kustomization

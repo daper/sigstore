@@ -1,0 +1,91 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: trillian
+spec:
+  interval: 1m
+  timeout: 1m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.5.1
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  values:
+    controllers:
+      log-server:
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/trillian_log_server
+              tag: v1.6.1@sha256:44adcb499389825ba9b58fa66b524cba78e8678b3c01b2db728bb651c8f8d386
+            args:
+              - --quota_system=postgresql
+              - --storage_system=postgresql
+              # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS
+              # https://www.postgresql.org/docs/current/libpq-envars.html
+              - --postgresql_uri=postgresql:///
+              - --rpc_endpoint=0.0.0.0:8090
+              - --http_endpoint=0.0.0.0:8091
+              - --alsologtostderr
+            env:
+              - name: PGHOST
+                value: postgresql.postgresql.svc.cluster.local
+              - name: PGPORT
+                valueFrom:
+                  secretKeyRef:
+                    name: postgresql-svcbind-postgres
+                    key: port
+              - name: PGDATABASE
+                valueFrom:
+                  secretKeyRef:
+                    name: postgresql-svcbind-postgres
+                    key: database
+              - name: PGUSER
+                valueFrom:
+                  secretKeyRef:
+                    name: postgresql-svcbind-postgres
+                    key: username
+              - name: PGPASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: postgresql-svcbind-postgres
+                    key: password
+              - name: PGAPPNAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+            envFrom:
+              - configMap: deploy-config
+            ports:
+              - name: grpc
+                containerPort: 8090
+              - name: http
+                containerPort: 8091
+            probes:
+              liveness:
+                enabled: true
+                type: HTTP
+                path: /healthz
+                port: http
+                spec:
+                  failureThreshold: 3
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+      log-signer:
+        enabled: false
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/trillian_log_signer
+              tag: v1.6.1@sha256:04b9b517e6bf5c0efadcbc3b16481f6c0975c611b28b60d241a584f229be1241
+
+    configMaps:
+      deploy-config:
+        data:
+          SIGNER_BATCH_SIZE: "--batch_size=500"
+          SIGNER_INTERVAL: "--sequencer_interval=20ms"
+          SIGNER_NUM_SEQUENCERS: "--num_sequencers=10"
+          SIGNER_MASTER_HOLD_JITTER: "--master_hold_jitter=7200s"

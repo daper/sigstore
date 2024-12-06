@@ -1,0 +1,87 @@
+installCRDs: false
+
+helmController:
+  container:
+    additionalArgs:
+      - --concurrent=4
+      - --graceful-shutdown-timeout=30s
+  resources:
+    requests: null
+
+kustomizeController:
+  container:
+    additionalArgs:
+      - --concurrent=4
+      - --max-retry-delay=30s
+  resources:
+    requests: null
+
+notificationController:
+  resources:
+    requests: null
+
+sourceController:
+  resources:
+    requests: null
+  volumes:
+    - name: ssl-certs
+      emptyDir: {}
+    - name: root-certificate
+      configMap:
+        name: root-certificate
+  volumeMounts: &volumeMounts
+    - name: ssl-certs
+      mountPath: /etc/ssl/certs
+    - name: root-certificate
+      mountPath: /etc/ssl/private/root.crt
+      subPath: ca.crt
+  initContainers:
+    - name: install-cert
+      image: ghcr.io/fluxcd/source-controller:v1.4.1
+      command:
+        - sh
+        - -c
+        - |
+          ls -l /etc/ssl/private/
+          cp /etc/ssl/private/root.crt /etc/ssl/certs/
+          update-ca-certificates
+      volumeMounts: *volumeMounts
+
+imageAutomationController:
+  create: false
+imageReflectionController:
+  create: false
+
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: root-certificate
+      namespace: flux-system
+    data:
+      ca.crt: |
+        ...
+  - apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: code
+      namespace: flux-system
+    spec:
+      interval: 5s
+      insecure: true
+      url: oci://kind-registry:5000/sigstore
+      ref:
+        tag: latest
+  - apiVersion: kustomize.toolkit.fluxcd.io/v1
+    kind: Kustomization
+    metadata:
+      name: main
+      namespace: flux-system
+    spec:
+      interval: 5s
+      sourceRef:
+        kind: OCIRepository
+        name: code
+      path: ./kubernetes
+      prune: true
+      timeout: 1m

@@ -1,0 +1,41 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: dashboard
+  annotations:
+    kustomize.config.k8s.io/skip-patch: "true"
+spec:
+  path: ./dashboard/latest
+  interval: 1m
+  timeout: 1m
+  sourceRef:
+    kind: Bucket
+    name: tekton
+    namespace: tekton
+  targetNamespace: tekton
+  prune: true
+  patches:
+    - patch: |-
+        - op: replace
+          path: /spec/template/spec/containers/0/args/2
+          value: --pipelines-namespace=tekton
+        - op: replace
+          path: /spec/template/spec/containers/0/args/3
+          value: --triggers-namespace=tekton
+        - op: replace
+          path: /spec/template/spec/containers/0/args/4
+          value: --read-only=false
+      target:
+        kind: Deployment
+        name: tekton-dashboard
+    - patch: |-
+        - op: add
+          path: /rules/2/verbs/-
+          value: create
+        - op: add
+          path: /rules/2/verbs/-
+          value: delete
+      target:
+        kind: ClusterRole
+        name: tekton-dashboard-tenant
