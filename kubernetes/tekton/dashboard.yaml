@@ -36,6 +36,9 @@ spec:
         - op: add
           path: /rules/2/verbs/-
           value: delete
+        - op: add
+          path: /rules/2/verbs/-
+          value: patch
       target:
         kind: ClusterRole
         name: tekton-dashboard-tenant

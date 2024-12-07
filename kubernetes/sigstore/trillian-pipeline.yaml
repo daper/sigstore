@@ -2,10 +2,12 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: build
+  name: trillian-pipeline
 spec:
   dependsOn:
     - name: pipeline
       namespace: tekton
-  path: ./kubernetes/sigstore/build
+    - name: triggers
+      namespace: tekton
+  path: ./kubernetes/sigstore/trillian-pipeline
   timeout: 1m

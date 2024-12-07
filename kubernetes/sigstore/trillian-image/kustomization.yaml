@@ -1,0 +1,4 @@
+resources:
+  - ocirepository.yaml
+  - notifications.yaml
+  - receiver.yaml

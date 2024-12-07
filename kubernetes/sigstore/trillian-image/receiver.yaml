@@ -1,0 +1,23 @@
+---
+apiVersion: notification.toolkit.fluxcd.io/v1
+kind: Receiver
+metadata:
+  name: trillian
+spec:
+  type: generic
+  secretRef:
+    name: webhook-token
+  events:
+    - dev.tekton.event.pipelinerun.successful.v1
+  resources:
+    - apiVersion: source.toolkit.fluxcd.io/v1beta2
+      kind: OCIRepository
+      name: trillian-log-server
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: webhook-token
+type: Opaque
+stringData:
+  token: trillian

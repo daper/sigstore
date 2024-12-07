@@ -1,0 +1,11 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: trillian-log-server
+spec:
+  url: oci://kind-registry:5000/trillian-log-server
+  ref:
+    tag: latest
+  interval: 1m
+  insecure: true

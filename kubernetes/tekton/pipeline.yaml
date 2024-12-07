@@ -44,3 +44,14 @@ spec:
       target:
         kind: ClusterRole
         name: tekton-pipelines-webhook-cluster-access
+    - patch: |-
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: not-used
+        data:
+          formats: tektonv1
+          sink: http://notification-controller.flux-system.svc.cluster.local/hook/829adadf7e1018889307a25482048e3f5382a8d76f97a5a43c6c00c7db240f31
+      target:
+        kind: ConfigMap
+        name: config-events

@@ -1,8 +1,10 @@
 resources:
   - charts
+  - default
   - cert-manager
   - kyverno
   - postgresql
   - reflector
   - sigstore
   - tekton
+  - knative

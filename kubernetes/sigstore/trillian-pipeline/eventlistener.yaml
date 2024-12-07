@@ -1,0 +1,77 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: eventlistener
+  annotations:
+    tekton.dev/payload-validation: "false"
+spec:
+  serviceAccountName: eventlistener
+  triggers:
+    - name: trillian
+      template:
+        spec:
+          resourcetemplates:
+            - apiVersion: tekton.dev/v1
+              kind: PipelineRun
+              metadata:
+                generateName: build-trillian-
+                namespace: sigstore
+              spec:
+                pipelineRef:
+                  name: build-trillian
+                workspaces:
+                  - name: shared
+                    volumeClaimTemplate:
+                      spec:
+                        accessModes:
+                          - ReadWriteOnce
+                        resources:
+                          requests:
+                            storage: 1Gi
+  resources:
+    kubernetesResource:
+      serviceType: ClusterIP
+      servicePort: 80
+  cloudEventURI: http://notification-controller.flux-system.svc.cluster.local/hook/829adadf7e1018889307a25482048e3f5382a8d76f97a5a43c6c00c7db240f31
+  # cloudEventURI: http://echo-server.default.svc.cluster.local/hook/829adadf7e1018889307a25482048e3f5382a8d76f97a5a43c6c00c7db240f31
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eventlistener
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eventlistener
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-aggregate-view
+subjects:
+  - kind: ServiceAccount
+    name: eventlistener
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eventlistener
+rules:
+  - apiGroups:
+      - tekton.dev
+    resources:
+      - pipelineruns
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eventlistener
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eventlistener
+subjects:
+  - kind: ServiceAccount
+    name: eventlistener

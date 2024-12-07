@@ -1,10 +1,8 @@
-namespace: sigstore
+namespace: knative
 
 resources:
   - namespace.yaml
-  - trillian-pipeline.yaml
-  - trillian-image.yaml
-  - trillian.yaml
+  - eventing.yaml
 
 patches:
   - patch: |-
@@ -17,8 +15,9 @@ patches:
           kind: OCIRepository
           name: code
           namespace: flux-system
-        targetNamespace: sigstore
+        targetNamespace: knative
         interval: 1m
+        timeout: 1m
         prune: true
     target:
       kind: Kustomization

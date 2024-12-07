@@ -1,0 +1,24 @@
+namespace: knative
+
+resources:
+  # - https://github.com/knative/eventing/releases/download/knative-v1.16.3/eventing-crds.yaml
+  # - https://github.com/knative/eventing/releases/download/knative-v1.16.3/eventing-core.yaml
+
+patches:
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: not-used
+    target:
+      kind: Namespace
+  - patch: |-
+      $patch: delete
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        name: not-used
+    target:
+      kind: CustomResourceDefinition
+      name: apiserversources.sources.knative.dev

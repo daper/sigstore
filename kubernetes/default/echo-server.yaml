@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: echo-server
+spec:
+  interval: 1m
+  timeout: 1m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.5.1
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  values:
+    controllers:
+      echo-server:
+        containers:
+          main:
+            image:
+              repository: jmalloc/echo-server
+              tag: v0.3.7@sha256:c87f80de8dbb976a59b228fc9ecf257e0574c6f760c2f1c5f05f64c7ac7fbc1e
+              pullPolicy: IfNotPresent
+            env:
+              PORT: &port 8080
+              LOG_HTTP_HEADERS: 1
+              LOG_HTTP_BODY: 1
+            ports:
+              - name: http
+                containerPort: *port
+    service:
+      echo-server:
+        controller: echo-server
+        ports:
+          http:
+            port: 80
+            targetPort: http

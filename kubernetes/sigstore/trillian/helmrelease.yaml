@@ -19,8 +19,8 @@ spec:
         containers:
           main:
             image:
-              repository: ghcr.io/sigstore/scaffolding/trillian_log_server
-              tag: v1.6.1@sha256:44adcb499389825ba9b58fa66b524cba78e8678b3c01b2db728bb651c8f8d386
+              repository: localhost:5001/trillian-log-server
+              tag: latest
             args:
               - --quota_system=postgresql
               - --storage_system=postgresql
@@ -79,8 +79,8 @@ spec:
         containers:
           main:
             image:
-              repository: ghcr.io/sigstore/scaffolding/trillian_log_signer
-              tag: v1.6.1@sha256:04b9b517e6bf5c0efadcbc3b16481f6c0975c611b28b60d241a584f229be1241
+              repository: localhost:5001/trillian-log-signer
+              tag: latest
 
     configMaps:
       deploy-config:

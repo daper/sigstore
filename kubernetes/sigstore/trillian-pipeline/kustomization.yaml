@@ -1,0 +1,3 @@
+resources:
+  - trillian.yaml
+  - eventlistener.yaml
