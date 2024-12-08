@@ -19,8 +19,8 @@ spec:
         containers:
           main:
             image:
-              repository: localhost:5001/trillian-log-server
-              tag: latest
+              repository: gcr.io/trillian-opensource-ci/log_server
+              tag: v1.7.0@sha256:7bb60ac58118464f53ef16155304fa33e02670663653294d1736968e91ff6253
             args:
               - --quota_system=postgresql
               - --storage_system=postgresql
@@ -79,8 +79,8 @@ spec:
         containers:
           main:
             image:
-              repository: localhost:5001/trillian-log-signer
-              tag: latest
+              repository: gcr.io/trillian-opensource-ci/log_signer
+              tag: v1.7.0@sha256:b3bab69b77f7583e80ed67a10b60d41dac6e533cf97989242bd7a183d921b390
 
     configMaps:
       deploy-config:

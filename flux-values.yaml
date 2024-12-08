@@ -49,8 +49,12 @@ sourceController:
 
 imageAutomationController:
   create: false
+  resources:
+    requests: null
 imageReflectionController:
   create: false
+  resources:
+    requests: null
 
 extraObjects:
   - apiVersion: v1

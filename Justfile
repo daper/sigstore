@@ -1,3 +1,5 @@
+import ".just/utils.just"
+
 kind-create:
   envsubst < kind.yaml \
   | kind create cluster \
@@ -48,7 +50,7 @@ registry:
       help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
   EOF
 
-flux:
+flux: push
   #!/usr/bin/env bash
 
   kubectl --context=kind-sigstore \
@@ -69,15 +71,5 @@ push:
   oras push localhost:5001/sigstore:latest data.tar.gz
   rm -f data.tar.gz
 
-find-recent-tag image:
-  #!/usr/bin/env bash
-
-  TAG=$(skopeo list-tags docker://{{image}} \
-  | jq -r '.Tags[]' \
-  | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
-  | sort -V | tail -n 1)
-
-  SHA=$(oras discover {{image}}:${TAG} \
-  | tail -n +2 | cut -d' ' -f2)
-
-  echo "{{image}}:${TAG}@${SHA}"
+build:
+  kubectl --context=kind-sigstore create -f kubernetes/sigstore/build/pipelinerun.yaml

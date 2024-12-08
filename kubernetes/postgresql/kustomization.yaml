@@ -2,7 +2,6 @@ namespace: postgresql
 
 resources:
   - namespace.yaml
-  - postgresql.yaml
 
 patches:
   - patch: |-
@@ -16,7 +15,9 @@ patches:
           name: code
           namespace: flux-system
         targetNamespace: postgresql
-        interval: 1m
+        interval: 10m
+        retryInterval: 1m
+        timeout: 1m
         prune: true
     target:
       kind: Kustomization

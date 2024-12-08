@@ -5,7 +5,6 @@ metadata:
   name: trillian
 spec:
   dependsOn:
-    - name: trillian-image
     - name: postgresql
       namespace: postgresql
   path: ./kubernetes/sigstore/trillian

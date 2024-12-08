@@ -2,9 +2,10 @@ namespace: sigstore
 
 resources:
   - namespace.yaml
-  - trillian-pipeline.yaml
-  - trillian-image.yaml
-  - trillian.yaml
+  # - trillian-pipeline.yaml
+  # - trillian-image.yaml
+  # - trillian-database.yaml
+  # - trillian.yaml
 
 patches:
   - patch: |-
@@ -19,6 +20,8 @@ patches:
           namespace: flux-system
         targetNamespace: sigstore
         interval: 1m
+        retryInterval: 1m
+        timeout: 1m
         prune: true
     target:
       kind: Kustomization

@@ -1,0 +1,8 @@
+resources: []
+
+configMapGenerator:
+  - name: initdb
+    options:
+      disableNameSuffixHash: true
+    files:
+      - storage.sql=https://raw.githubusercontent.com/google/trillian/refs/heads/master/storage/postgresql/schema/storage.sql
