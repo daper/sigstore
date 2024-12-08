@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-auth
+stringData:
+  postgres-password: postgres
+  sigstore-password: sigstore
+  trillian-password: trillian
+

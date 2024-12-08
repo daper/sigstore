@@ -2,6 +2,7 @@ namespace: postgresql
 
 resources:
   - namespace.yaml
+  - postgresql.yaml
 
 patches:
   - patch: |-

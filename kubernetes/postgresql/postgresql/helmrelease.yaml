@@ -1,0 +1,128 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: postgresql
+spec:
+  interval: 1m
+  timeout: 1m
+  chart:
+    spec:
+      chart: postgresql
+      version: 16.2.5
+      sourceRef:
+        kind: HelmRepository
+        name: bitnami
+        namespace: flux-system
+  upgrade:
+    force: true
+  rollback:
+    force: true
+  values:
+    diagnosticMode:
+      enabled: false
+      command: [tail]
+      args: [-f, /dev/null]
+    image:
+      debug: true
+
+    auth:
+      database: sigstore
+      username: sigstore
+      existingSecret: postgresql-auth
+      secretKeys:
+        adminPasswordKey: postgres-password
+        userPasswordKey: sigstore-password
+      usePasswordFiles: true
+
+    primary:
+      initdb:
+        scripts:
+          01-sigstore.sh: |-
+            #!/bin/bash
+            set -x
+
+            export PGUSER=postgres
+            export PGPASSWORD=$(cat /opt/bitnami/postgresql/secrets/postgres-password)
+
+            psql -f- <<EOF
+              ALTER ROLE sigstore NOSUPERUSER NOCREATEDB CREATEROLE NOINHERIT LOGIN NOREPLICATION NOBYPASSRLS;
+
+              REVOKE ALL PRIVILEGES ON DATABASE postgres FROM sigstore;
+              GRANT ALL ON DATABASE sigstore TO sigstore WITH GRANT OPTION;
+            EOF
+          02-trillian.sh: |-
+            #!/bin/bash
+            set -x
+
+            ROLE_NAME="trillian"
+            ROLE_PASSWORD=$(cat /opt/bitnami/postgresql/secrets/${ROLE_NAME}-password)
+            SIGSTORE_PASSWORD=$(cat /opt/bitnami/postgresql/secrets/sigstore-password)
+
+            export PGUSER=sigstore
+            export PGPASSWORD=$SIGSTORE_PASSWORD
+            export PGDATABASE=sigstore
+
+            psql -f- <<-EOF
+              CREATE ROLE $ROLE_NAME WITH LOGIN PASSWORD '$ROLE_PASSWORD' NOINHERIT;
+              ALTER ROLE $ROLE_NAME SET search_path TO $ROLE_NAME, public;
+
+              CREATE SCHEMA $ROLE_NAME;
+              GRANT ALL ON SCHEMA $ROLE_NAME TO sigstore WITH GRANT OPTION;
+              GRANT USAGE ON SCHEMA $ROLE_NAME TO $ROLE_NAME;
+              ALTER DEFAULT PRIVILEGES FOR ROLE sigstore IN SCHEMA $ROLE_NAME
+                GRANT ALL PRIVILEGES ON TABLES TO $ROLE_NAME;
+              ALTER DEFAULT PRIVILEGES FOR ROLE sigstore IN SCHEMA $ROLE_NAME
+                GRANT USAGE ON SEQUENCES TO $ROLE_NAME;
+
+              ALTER ROLE sigstore SET search_path TO $ROLE_NAME, public;
+            EOF
+
+            psql -f <(cat /opt/$ROLE_NAME/*.sql)
+
+            psql -f- <<-EOF
+              ALTER ROLE sigstore RESET search_path;
+            EOF
+
+      extraVolumes:
+        - name: init-trillian
+          configMap:
+            name: init-trillian
+      extraVolumeMounts:
+        - name: init-trillian
+          mountPath: /opt/trillian
+
+      resourcesPreset: none
+      networkPolicy:
+        enabled: false
+      persistentVolumeClaimRetentionPolicy:
+        enabled: true
+        whenDeleted: Delete
+
+      # containerSecurityContext:
+      #   enabled: true
+      #   runAsUser: 0
+      #   runAsGroup: 0
+      #   runAsNonRoot: false
+      #   privileged: false
+      #   readOnlyRootFilesystem: false
+      #   capabilities: ~
+
+    serviceBindings:
+      enabled: true
+
+  postRenderers:
+    - kustomize:
+        patches:
+          - patch: |-
+              - op: add
+                path: /metadata/annotations/reflector.v1.k8s.emberstack.com~1reflection-allowed
+                value: "true"
+              - op: add
+                path: /metadata/annotations/reflector.v1.k8s.emberstack.com~1reflection-auto-enabled
+                value: "true"
+              - op: add
+                path: /metadata/annotations/reflector.v1.k8s.emberstack.com~1reflection-auto-namespaces
+                value: "sigstore"
+            target:
+              kind: Secret
+              name: .*-svcbind-.*

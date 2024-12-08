@@ -17,6 +17,7 @@ patches:
           namespace: flux-system
         targetNamespace: reflector
         interval: 1m
+        timeout: 1m
         prune: true
     target:
       kind: Kustomization
