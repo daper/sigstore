@@ -110,6 +110,16 @@ spec:
     serviceBindings:
       enabled: true
 
+    audit:
+      logHostname: false
+      logConnections: false
+      logDisconnections: false
+      pgAuditLog: "all"
+      pgAuditLogCatalog: "off"
+      clientMinMessages: error
+      logLinePrefix: ""
+      logTimezone: ""
+
   postRenderers:
     - kustomize:
         patches:

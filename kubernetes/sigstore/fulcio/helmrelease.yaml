@@ -1,0 +1,156 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: fulcio
+spec:
+  interval: 1m
+  timeout: 1m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.5.1
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  values:
+    controllers:
+      fulcio:
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/fulcio
+              tag: v1.6.5@sha256:2499cc14a6beab86866fc9a2e721665083f102201e6db0ee8b4e3b5faab89a74
+              pullPolicy: IfNotPresent
+            args:
+              - serve
+              - --port=5555
+              - --ca=fileca
+              - --fileca-key
+              - /var/run/fulcio-secrets/key.pem
+              - --fileca-cert
+              - /var/run/fulcio-secrets/cert.pem
+              - --fileca-key-passwd
+              - $(PASSWORD)
+              - --ct-log-url=http://ctlog.$(NAMESPACE).svc.cluster.local/sigstorescaffolding
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: fulcio-secrets
+                    key: password
+              - name: GODEBUG
+                value: "netdns=go"
+            ports:
+              - name: fulcio
+                containerPort: 5555
+
+      createcerts:
+        type: job
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/createcerts
+              tag: v0.7.17@sha256:ba88ae9bd4ba8cd1b32327b29454b7df7647454adf3c7f392afa66451dae058b
+              pullPolicy: IfNotPresent
+            args:
+              - --secret=fulcio-secrets
+              - --pubkeysecret=fulcio-pub-key
+              - --cert-organization="Linux Foundation"
+              - --cert-country="USA"
+              - --cert-province="California"
+              - --cert-locality="San Francisco"
+              - --cert-address="548 Market St"
+              - --cert-postal=57274
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+        serviceAccount:
+          identifier: operator
+
+    configMaps:
+      config:
+        data:
+          _placeholder: ""
+
+    service:
+      fulcio:
+        controller: fulcio
+        type: ClusterIP
+        ports:
+          rpc:
+            port: 5555
+
+    persistence:
+      config:
+        type: configMap
+        identifier: config
+        advancedMounts:
+          fulcio:
+            main:
+              - path: /etc/fulcio-config
+
+      oidc-info:
+        type: custom
+        volumeSpec:
+          projected:
+            sources:
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+                      mode: 0666
+        advancedMounts:
+          fulcio:
+            main:
+              - path: /var/run/fulcio
+
+      secrets:
+        type: secret
+        name: fulcio-secrets
+        items:
+          - key: private
+            path: key.pem
+          - key: cert
+            path: cert.pem
+        advancedMounts:
+          fulcio:
+            main:
+              - path: /var/run/fulcio-secrets
+                readOnly: true
+
+    serviceAccount:
+      create: true
+      extraServiceAccounts:
+        operator: {}
+
+    rbac:
+      roles:
+        operator:
+          type: Role
+          rules:
+            - apiGroups: [""]
+              resources: [configmaps]
+              resourceNames: [fulcio-config]
+              verbs: [get, update]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [create]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [get, update, patch, delete]
+              resourceNames: [fulcio-pub-key, fulcio-secrets]
+      bindings:
+        operator:
+          type: RoleBinding
+          roleRef:
+            identifier: operator
+          subjects:
+            - identifier: operator

@@ -1,0 +1,5 @@
+oidc-issuers:
+  https://daper.eu.auth0.com/oauth:
+    issuer-url: https://daper.eu.auth0.com/
+    client-id: ---
+    type: email

@@ -1,0 +1,7 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: fulcio
+spec:
+  path: ./kubernetes/sigstore/fulcio

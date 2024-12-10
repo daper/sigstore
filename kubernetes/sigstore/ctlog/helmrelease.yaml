@@ -1,0 +1,129 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ctlog
+spec:
+  interval: 1m
+  timeout: 1m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.5.1
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  values:
+    controllers:
+      ctlog:
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/ct_server
+              tag: v0.7.17@sha256:92a5fc1cdd87292b111f476a972772150c929650d7256b4f9eb9e2549307fbee
+              pullPolicy: IfNotPresent
+            args:
+              - --http_endpoint=0.0.0.0:6962
+              - --log_config=/ctfe-keys/config
+              - --alsologtostderr
+            ports:
+              - name: ctlog
+                containerPort: 6962
+
+      createconfig:
+        type: job
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/createctconfig
+              tag: v0.7.17@sha256:210b03f44b6813bc4cae8b6f8fb2d0289cd1b6e1024505b9cb9f66dc07202b5e
+              pullPolicy: IfNotPresent
+            args:
+              - --configmap=ctlog-config
+              - --secret=ctlog-secrets
+              - --pubkeysecret=ctlog-public-key
+              - --log-prefix=sigstorescaffolding
+              - --fulcio-url=http://fulcio.$(NAMESPACE).svc.cluster.local:5555
+              - --trillian-server=trillian-log-server.$(NAMESPACE).svc.cluster.local:8090
+
+              - --keytype=ecdsa
+              - --curvetype=p256
+              - --key-password=test
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+        serviceAccount:
+          identifier: operator
+      createtree:
+        type: job
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/createtree
+              tag: v0.7.17@sha256:d26bc7b6444525a9c01bc1211a92461b41fbf2d2fd96a199f8a1c59bb056f2b3
+              pullPolicy: IfNotPresent
+            args:
+              - --namespace=$(NAMESPACE)
+              - --configmap=ctlog-config
+              - --display_name=ctlogtree
+              - --admin_server=trillian-log-server.$(NAMESPACE).svc.cluster.local:8090
+              - --force=false
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+        serviceAccount:
+          identifier: operator
+
+    configMaps:
+      config:
+        data:
+          _placeholder: ""
+
+    service:
+      ctlog:
+        controller: ctlog
+        type: ClusterIP
+        ports:
+          rpc:
+            port: 8090
+
+    persistence:
+      secrets:
+        type: secret
+        name: ctlog-secrets
+        advancedMounts:
+          ctlog:
+            main:
+              - path: /ctfe-keys
+
+    serviceAccount:
+      create: true
+      extraServiceAccounts:
+        operator: {}
+    rbac:
+      roles:
+        operator:
+          type: Role
+          rules:
+            - apiGroups: [""]
+              resources: [configmaps]
+              resourceNames: [ctlog-config]
+              verbs: [get, update]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [create]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [get, update, patch, delete]
+              resourceNames: [ctlog-public-key, ctlog-secrets]
+      bindings:
+        operator:
+          type: RoleBinding
+          roleRef:
+            identifier: operator
+          subjects:
+            - identifier: operator

@@ -1,10 +1,9 @@
 resources:
-  - auth.yaml
   - helmrelease.yaml
 
 configMapGenerator:
-  - name: init-trillian
+  - name: fulcio-config
+    files:
+      - config.yaml
     options:
       disableNameSuffixHash: true
-    files:
-      - storage.sql

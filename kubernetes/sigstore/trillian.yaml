@@ -4,8 +4,7 @@ kind: Kustomization
 metadata:
   name: trillian
 spec:
-  dependsOn:
-    - name: postgresql
-      namespace: postgresql
+  # dependsOn:
+  #   - name: postgresql
+  #     namespace: postgresql
   path: ./kubernetes/sigstore/trillian
-  timeout: 1m

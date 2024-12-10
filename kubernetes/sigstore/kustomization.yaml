@@ -2,10 +2,11 @@ namespace: sigstore
 
 resources:
   - namespace.yaml
-  # - trillian-pipeline.yaml
-  # - trillian-image.yaml
-  # - trillian-database.yaml
-  # - trillian.yaml
+  - redis.yaml
+  - trillian.yaml
+  - rekor.yaml
+  - fulcio.yaml
+  - ctlog.yaml
 
 patches:
   - patch: |-

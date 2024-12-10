@@ -21,8 +21,9 @@ spec:
             image:
               repository: gcr.io/trillian-opensource-ci/log_server
               tag: v1.7.0@sha256:7bb60ac58118464f53ef16155304fa33e02670663653294d1736968e91ff6253
+              pullPolicy: IfNotPresent
             args:
-              - --quota_system=postgresql
+              - --quota_system=noop
               - --storage_system=postgresql
               # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS
               # https://www.postgresql.org/docs/current/libpq-envars.html
@@ -30,35 +31,33 @@ spec:
               - --rpc_endpoint=0.0.0.0:8090
               - --http_endpoint=0.0.0.0:8091
               - --alsologtostderr
-            env:
+            env: &postgres-config
               - name: PGHOST
                 value: postgresql.postgresql.svc.cluster.local
               - name: PGPORT
                 valueFrom:
                   secretKeyRef:
-                    name: postgresql-svcbind-postgres
+                    name: postgresql-svcbind-trillian
                     key: port
               - name: PGDATABASE
                 valueFrom:
                   secretKeyRef:
-                    name: postgresql-svcbind-postgres
+                    name: postgresql-svcbind-trillian
                     key: database
               - name: PGUSER
                 valueFrom:
                   secretKeyRef:
-                    name: postgresql-svcbind-postgres
+                    name: postgresql-svcbind-trillian
                     key: username
               - name: PGPASSWORD
                 valueFrom:
                   secretKeyRef:
-                    name: postgresql-svcbind-postgres
+                    name: postgresql-svcbind-trillian
                     key: password
               - name: PGAPPNAME
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.name
-            envFrom:
-              - configMap: deploy-config
             ports:
               - name: grpc
                 containerPort: 8090
@@ -75,17 +74,55 @@ spec:
                   periodSeconds: 30
                   timeoutSeconds: 5
       log-signer:
-        enabled: false
+        enabled: true
+        type: statefulset
+        replicas: 1
         containers:
           main:
             image:
               repository: gcr.io/trillian-opensource-ci/log_signer
               tag: v1.7.0@sha256:b3bab69b77f7583e80ed67a10b60d41dac6e533cf97989242bd7a183d921b390
+              pullPolicy: IfNotPresent
+            args:
+              - --quota_system=noop
+              - --storage_system=postgresql
+              - --postgresql_uri=postgresql:///
+              - --rpc_endpoint=0.0.0.0:8090
+              - --http_endpoint=0.0.0.0:8091
+              - --sequencer_guard_window=1s
+              - --sequencer_interval=1s
+              - --num_sequencers=10
+              - --batch_size=500
+              - --master_hold_jitter=7200s
+              - --alsologtostderr
+              - --force_master
+            env: *postgres-config
+            probes:
+              liveness:
+                enabled: true
+                type: HTTP
+                path: /healthz
+                port: http
+                spec:
+                  failureThreshold: 3
+                  periodSeconds: 30
+                  timeoutSeconds: 5
+            ports:
+              - name: grpc
+                containerPort: 8090
+              - name: http
+                containerPort: 8091
 
-    configMaps:
-      deploy-config:
-        data:
-          SIGNER_BATCH_SIZE: "--batch_size=500"
-          SIGNER_INTERVAL: "--sequencer_interval=20ms"
-          SIGNER_NUM_SEQUENCERS: "--num_sequencers=10"
-          SIGNER_MASTER_HOLD_JITTER: "--master_hold_jitter=7200s"
+    service:
+      log-server:
+        controller: log-server
+        type: ClusterIP
+        ports:
+          rpc:
+            port: 8090
+      log-signer:
+        controller: log-signer
+        type: ClusterIP
+        ports:
+          rpc:
+            port: 8090

@@ -1,0 +1,175 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rekor
+spec:
+  interval: 1m
+  timeout: 1m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.5.1
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  values:
+    controllers:
+      rekor:
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/rekor/rekor-server
+              tag: v1.3.7@sha256:b0358d1d1d399bc50f1375fcf4f665e4432bebd7fc4900d893ddc788f05fc76e
+              pullPolicy: IfNotPresent
+            args:
+              - serve
+              - --trillian_log_server.address=trillian-log-server.$(NAMESPACE).svc.cluster.local
+              - --trillian_log_server.port=8090
+              - --trillian_log_server.tlog_id=$(TREE_ID)
+              - --redis_server.address=redis-master.$(NAMESPACE).svc.cluster.local
+              - --redis_server.port=6379
+              - --rekor_server.address=0.0.0.0
+              - --rekor_server.signer=memory
+              # - --enable_retrieve_api=true
+              # - --log_type=prod
+              - --enable_attestation_storage
+              - --attestation_storage_bucket=file:///var/run/attestations
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: TREE_ID
+                valueFrom:
+                  configMapKeyRef:
+                    name: rekor-config
+                    key: treeID
+              - name: SECRET_SIGNING_PWD
+                valueFrom:
+                  secretKeyRef:
+                    name: rekor-signing-secret
+                    key: signing-secret-password
+            ports:
+              - name: rekor
+                containerPort: 3000
+              - name: metrics
+                containerPort: 2112
+            probes:
+              liveness: &rekor-probe
+                enabled: true
+                type: HTTP
+                path: /ping
+                port: rekor
+                spec:
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
+              readiness: *rekor-probe
+
+      shell:
+        enabled: false
+        containers:
+          main:
+            image:
+              repository: docker.io/library/alpine
+              tag: "3.20"
+            args:
+              - tail
+              - -f
+              - /dev/null
+        serviceAccount:
+          identifier: operator
+
+      createtree:
+        type: job
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/createtree
+              tag: v0.7.17@sha256:d26bc7b6444525a9c01bc1211a92461b41fbf2d2fd96a199f8a1c59bb056f2b3
+              pullPolicy: IfNotPresent
+            args:
+              - --namespace=$(NAMESPACE)
+              - --configmap=rekor-config
+              - --display_name=rekortree
+              - --admin_server=trillian-log-server.$(NAMESPACE).svc.cluster.local:8090
+              - --force=false
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+        serviceAccount:
+          identifier: operator
+      createsecret:
+        type: job
+        containers:
+          main:
+            image:
+              repository: ghcr.io/sigstore/scaffolding/rekor-createsecret
+              tag: v0.7.17@sha256:bc87ace9cebea818d300af5753705f326f7c230b07762f07d11cbe8e07843c6d
+              pullPolicy: IfNotPresent
+            args:
+              - --signing-secret=rekor-signing-secret
+              - --signing-secret-pwd=scaffoldtest
+              - --secret=rekor-pub-key
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+        serviceAccount:
+          identifier: operator
+
+    configMaps:
+      config:
+        data:
+          _placeholder: ""
+
+    persistence:
+      secrets:
+        type: secret
+        name: rekor-signing-secret
+        items:
+          - key: signing-secret
+            path: signing-secret
+        advancedMounts:
+          rekor:
+            main:
+              - path: /var/run/rekor-secrets
+      attestation:
+        type: emptyDir
+        advancedMounts:
+          rekor:
+            main:
+              - path: /var/run/attestations
+
+    serviceAccount:
+      create: true
+      extraServiceAccounts:
+        operator: {}
+    rbac:
+      roles:
+        operator:
+          type: Role
+          rules:
+            - apiGroups: [""]
+              resources: [configmaps]
+              resourceNames: [rekor-config]
+              verbs: [get, update]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [create]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [get, update, patch, delete]
+              resourceNames: [rekor-pub-key, rekor-signing-secret]
+      bindings:
+        operator:
+          type: RoleBinding
+          roleRef:
+            identifier: operator
+          subjects:
+            - identifier: operator

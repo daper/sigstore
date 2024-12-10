@@ -1,0 +1,17 @@
+resources:
+  - helmrelease.yaml
+
+secretGenerator:
+  - name: postgresql-svcbind-trillian
+    literals:
+      - database=sigstore
+      - host=postgresql.postgresql.svc.cluster.local
+      - password=trillian
+      - port=5432
+      - provider=
+      - type=postgresql
+      - uri=postgresql://trillian:trillian@postgresql:5432/sigstore
+      - username=trillian
+    type: servicebinding.io/postgresql
+    options:
+      disableNameSuffixHash: true
